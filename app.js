@@ -32,7 +32,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Health check passed' });
 });
 
-// Создаем папку uploads только если она не существует (для локальной разработки)
+// Создаем папку uploads только если она не существует (для локальной разработки
 try {
   if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
     fs.mkdirSync(path.join(__dirname, 'uploads'))
