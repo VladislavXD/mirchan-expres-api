@@ -23,9 +23,22 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use('/api', indexRouter);
 
-// Создаем папку uploads только если она не существует (для локальной разработки
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-  fs.mkdirSync(path.join(__dirname, 'uploads'))
+// Простой тестовый маршрут для проверки работы на Vercel
+app.get('/', (req, res) => {
+  res.json({ message: 'API работает на Vercel!', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Health check passed' });
+});
+
+// Создаем папку uploads только если она не существует (для локальной разработки)
+try {
+  if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+    fs.mkdirSync(path.join(__dirname, 'uploads'))
+  }
+} catch (error) {
+  console.warn('Cannot create uploads directory on serverless environment')
 }
 
 // catch 404 and forward to error handler
