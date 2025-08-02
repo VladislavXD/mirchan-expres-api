@@ -15,21 +15,63 @@ const app = express();
 
 // Настройка CORS для работы с фронтендом
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://mirchan.netlify.app',
-    'https://your-frontend-domain.com' // добавьте другие домены если нужно
-  ],
+  origin: function (origin, callback) {
+    // Разрешаем запросы без origin (мобильные приложения, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Список разрешенных доменов
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://mirchan.netlify.app'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200 // для поддержки старых браузеров
 };
 
+// Применяем CORS ко всем маршрутам
 app.use(cors(corsOptions));
 
-// Обработка preflight запросов
-app.options('*', cors(corsOptions));
+// Явная обработка preflight OPTIONS запросов
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', true);
+  res.sendStatus(200);
+});
+
+// Middleware для установки CORS заголовков на всех ответах
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://mirchan.netlify.app'
+  ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  
+  next();
+});
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -49,6 +91,16 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Health check passed' });
+});
+
+// Тестовый маршрут для проверки CORS
+app.get('/api/cors-test', (req, res) => {
+  res.json({ 
+    message: 'CORS test passed',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
 });
 
 // catch 404 and forward to error handler
