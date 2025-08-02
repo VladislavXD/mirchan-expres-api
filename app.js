@@ -44,7 +44,7 @@ const corsOptions = {
 };
 
 // Применяем CORS ко всем маршрутам
-app.use(cors(corsOptions));
+app.use(cors());
 
 // Явная обработка preflight OPTIONS запросов
 app.options('*', (req, res) => {
