@@ -12,7 +12,25 @@ const app = express();
 
 // view engine setup
 // app.set('views', path.join(__dirname, 'views'));
-app.use(cors())
+
+// Настройка CORS для работы с фронтендом
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://mirchan.netlify.app',
+    'https://your-frontend-domain.com' // добавьте другие домены если нужно
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+// Обработка preflight запросов
+app.options('*', cors(corsOptions));
+
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -32,15 +50,6 @@ app.get('/', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Health check passed' });
 });
-
-// Создаем папку uploads только если она не существует (для локальной разработки)
-try {
-  if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-    fs.mkdirSync(path.join(__dirname, 'uploads'))
-  }
-} catch (error) {
-  console.warn('Cannot create uploads directory on serverless environment')
-}
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
