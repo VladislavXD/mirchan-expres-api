@@ -9,29 +9,43 @@ const CommentController = require('../controllers/commetn_controller.js');
 const LikeController = require('../controllers/like_controller.js');
 const FollowController = require('../controllers/follow_controller.js');
 
-const uploadDestination = 'uploads'
+// Конфигурация multer для сохранения файлов в память (для Cloudinary)
+const storage = multer.memoryStorage();
 
-
-// показываем, где хранить  файлы
-const storage = multer.diskStorage({
-  destination: uploadDestination,
-  filename: function(req, file, call) {
-    call(null, file.originalname)
+const uploads = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB лимит
+  },
+  fileFilter: (req, file, cb) => {
+    // Разрешаем только изображения
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Только изображения разрешены!'), false);
+    }
   }
 });
 
-const uploads = multer({storage: storage})
-
-
-
-
+// Middleware для обработки ошибок multer
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Файл слишком большой (максимум 5MB)' });
+    }
+  }
+  if (err.message === 'Только изображения разрешены!') {
+    return res.status(400).json({ error: 'Разрешены только изображения' });
+  }
+  next(err);
+};
 
 /* GET user route. */
 router.post('/register', UserController.register)
 router.post('/login', UserController.login)
 router.get('/user/:id', authenticateTokent, UserController.getUserById)
 router.get('/current', authenticateTokent, UserController.currentUser)
-router.put('/user/:id', authenticateTokent, uploads.single('avatar'), UserController.updateUser)
+router.put('/user/:id', authenticateTokent, uploads.single('avatar'), handleMulterError, UserController.updateUser)
 
 
 // route posts

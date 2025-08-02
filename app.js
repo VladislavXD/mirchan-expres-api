@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 // app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'pug');
-// Раздаем статический файлы из папки uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+// Статические файлы теперь хранятся в Cloudinary
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use('/api', indexRouter);
 
@@ -33,7 +33,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Health check passed' });
 });
 
-// Создаем папку uploads только если она не существует (для локальной разработки
+// Создаем папку uploads только если она не существует (для локальной разработки)
 try {
   if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
     fs.mkdirSync(path.join(__dirname, 'uploads'))
