@@ -11,6 +11,7 @@ require('dotenv').config()
 const app = express();
 
 // view engine setup
+// app.set('views', path.join(__dirname, 'views'));
 app.use(cors())
 app.use(logger('dev'));
 app.use(express.json());
