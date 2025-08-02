@@ -24,8 +24,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:5173',
       'https://mirchan.netlify.app',
-      'mirchan-expres-jrnfz741q-vladislavdevs-projects.vercel.app',
-      'mirchan-expres-api.vercel.app'
+      'https://mirchan-expres-api.onrender.com'
 
     ];
     
