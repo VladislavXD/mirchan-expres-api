@@ -110,8 +110,16 @@ const UserController = {
         where: { id },
         include: {
           post: true,
-          followers: true,
-          following: true,
+          followers: {
+            include: {
+              follower: true,
+            },
+          },
+          following: {
+            include: {
+              following: true,
+            },
+          },
         },
       });
 

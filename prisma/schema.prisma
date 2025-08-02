@@ -24,6 +24,7 @@ model User {
   updated     DateTime  @updatedAt
   bio         String?
   location    String?
+  lastSeen    DateTime? // Время последней активности
   post        Post[]
   likes       Like[]
   comments    Comment[]
@@ -64,4 +65,24 @@ model Comment {
   userId  String @db.ObjectId
   post    Post   @relation(fields: [postId], references: [id])
   postId  String @db.ObjectId
+}
+
+model Chat {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  participants String[]  @db.ObjectId // IDs участников чата
+  lastMessage  String?   // Последнее сообщение для превью
+  lastMessageAt DateTime? // Время последнего сообщения
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+}
+
+model Message {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  senderId  String   @db.ObjectId
+  chatId    String   @db.ObjectId
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

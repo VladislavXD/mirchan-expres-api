@@ -23,7 +23,10 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://mirchan.netlify.app'
+      'https://mirchan.netlify.app',
+      'mirchan-expres-jrnfz741q-vladislavdevs-projects.vercel.app',
+      'mirchan-expres-api.vercel.app'
+
     ];
     
     if (allowedOrigins.includes(origin)) {
@@ -53,32 +56,13 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Middleware для установки CORS заголовков на всех ответах
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://mirchan.netlify.app'
-  ];
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  
-  next();
-});
-
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 // app.use(express.static(path.join(__dirname, 'public')));
-app.set('view engine', 'pug');
+// Не используем view engine, так как это API сервер
+// app.set('view engine', 'pug');
 // Статические файлы теперь хранятся в Cloudinary
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
@@ -93,19 +77,16 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Health check passed' });
 });
 
-// Тестовый маршрут для проверки CORS
-app.get('/api/cors-test', (req, res) => {
-  res.json({ 
-    message: 'CORS test passed',
-    origin: req.headers.origin,
-    timestamp: new Date().toISOString(),
-    headers: req.headers
-  });
-});
-
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  next(createError(404));
+  // Возвращаем JSON ответ для 404 ошибок
+  res.status(404).json({
+    error: {
+      message: 'Not Found',
+      status: 404,
+      path: req.originalUrl
+    }
+  });
 });
 
 // error handler
@@ -114,9 +95,16 @@ app.use(function(err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
-  // render the error page
+  // return JSON error response instead of rendering a view
   res.status(err.status || 500);
-  res.render('error');
+  res.json({
+    error: req.app.get('env') === 'development' ? {
+      message: err.message,
+      stack: err.stack
+    } : {
+      message: 'Internal server error'
+    }
+  });
 });
 
 module.exports = app

@@ -8,6 +8,7 @@ const PostController = require('../controllers/post_controller.js');
 const CommentController = require('../controllers/commetn_controller.js');
 const LikeController = require('../controllers/like_controller.js');
 const FollowController = require('../controllers/follow_controller.js');
+const ChatController = require('../controllers/chat_controller.js');
 
 // Конфигурация multer для сохранения файлов в память (для Cloudinary)
 const storage = multer.memoryStorage();
@@ -72,5 +73,12 @@ router.delete('/likes/:id', authenticateTokent, LikeController.unLikePost)
 // follows route
 router.post('/follow', authenticateTokent, FollowController.followUser)
 router.delete('/follow/:id', authenticateTokent, FollowController.unfollowUser)
+
+// Chat routes
+router.get('/chats', authenticateTokent, ChatController.getUserChats)
+router.get('/chats/:otherUserId', authenticateTokent, ChatController.getOrCreateChat)
+router.get('/chats/:chatId/messages', authenticateTokent, ChatController.getChatMessages)
+router.put('/chats/:chatId/read', authenticateTokent, ChatController.markMessagesAsRead)
+router.delete('/chats/:chatId', authenticateTokent, ChatController.deleteChat)
 
 module.exports = router
