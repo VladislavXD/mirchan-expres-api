@@ -50,11 +50,11 @@ router.put('/user/:id', authenticateTokent, uploads.single('avatar'), handleMult
 
 
 // route posts
-router.post('/posts', authenticateTokent, PostController.createPost)
+router.post('/posts', authenticateTokent, uploads.single('image'), handleMulterError, PostController.createPost)
 router.get('/posts', authenticateTokent, PostController.GetAllPosts)
 router.get('/posts/:id', authenticateTokent, PostController.GetPostById)
 router.delete('/posts/:id', authenticateTokent, PostController.DeletePost)
-router.delete('/posts/:id', authenticateTokent, PostController.GetPostByUserId)
+router.get('/posts/user/:userId', authenticateTokent, PostController.GetPostByUserId)
 
 
 

@@ -142,7 +142,7 @@ const UserController = {
   },
   updateUser: async (req, res) => {
     const { id } = req.params;
-    const { email, name, dateOfBirth, bio, location } = req.body;
+    const { email, name, dateOfBirth, bio, location, avatarFrameUrl, usernameFrameUrl, backgroundUrl } = req.body;
 
     if (id !== req.user.userId) {
       return res.status(403).json({ error: "Нет доступа" });
@@ -201,6 +201,7 @@ const UserController = {
         }
       }
 
+      // Обновление пользователя. avatarFrameUrl/backgroundUrl приходят как готовые ссылки (предустановленные варианты)
       const updatedUser = await prisma.user.update({
         where: { id },
         data: {
@@ -210,6 +211,12 @@ const UserController = {
           ...(dateOfBirth && { dateOfBirth }),
           ...(bio && { bio }),
           ...(location && { location }),
+          // Добавляем рамку, если прислали новую и она отличается
+          ...(avatarFrameUrl && avatarFrameUrl !== existingUser.avatarFrameUrl && { avatarFrameUrl }),
+          // Добавляем рамку для имени пользователя, если прислали новую и она отличается
+          ...(usernameFrameUrl && usernameFrameUrl !== existingUser.usernameFrameUrl && { usernameFrameUrl }),
+          // Добавляем фон, если прислали новый и он отличается
+          ...(backgroundUrl && backgroundUrl !== existingUser.backgroundUrl && { backgroundUrl }),
         },
       });
 

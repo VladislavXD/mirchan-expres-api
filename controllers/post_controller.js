@@ -1,10 +1,10 @@
 const {prisma} = require('../prisma/prisma-client.js')
+const { cloudinary } = require('../utils/cloudinary.js')
 
 
 const PostController = {
     createPost: async (req, res) => {
         const {content} = req.body;
-
         const authorId = req.user.userId;
 
         if(!content){
@@ -12,16 +12,59 @@ const PostController = {
         }
 
         try{
+            let imageUrl = null;
+            
+            // Загружаем изображение на Cloudinary, если оно есть
+            if (req.file) {
+                try {
+                    // Используем streamifier для загрузки из буфера
+                    const streamifier = require('streamifier');
+                    
+                    const uploadResult = await new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            {
+                                folder: 'mirchanPost',
+                                transformation: [
+                                    { width: 800, height: 600, crop: 'limit' },
+                                    { quality: 'auto:good' }
+                                ]
+                            },
+                            (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            }
+                        );
+                        streamifier.createReadStream(req.file.buffer).pipe(stream);
+                    });
+                    
+                    imageUrl = uploadResult.secure_url;
+                } catch (uploadError) {
+                    console.error('Cloudinary upload error:', uploadError);
+                    return res.status(500).json({error: 'Ошибка загрузки изображения'});
+                }
+            }
+
             const post = await prisma.post.create({
                 data: {
                     content, 
-                    authorId
+                    authorId,
+                    imageUrl
+                },
+                include: {
+                    author: {
+                        include: {
+                            followers: true,
+                            following: true
+                        }
+                    },
+                    likes: true,
+                    comments: true
                 }
             })
 
             res.json(post)
         }catch(err){
-            console.log("Create post error");
+            console.log("Create post error", err);
             res.status(500).json({error: 'Internal server error'})
 
         }
@@ -33,7 +76,12 @@ const PostController = {
             const posts = await prisma.post.findMany({
                 include: {
                     likes: true,
-                    author: true,
+                    author: {
+                        include: {
+                            followers: true,
+                            following: true
+                        }
+                    },
                     comments: true
                 },
                 orderBy: {
@@ -66,7 +114,12 @@ const PostController = {
                         },
                     },
                     likes: true,
-                    author: true
+                    author: {
+                        include: {
+                            followers: true,
+                            following: true
+                        }
+                    }
                 }
                 
             })
@@ -95,7 +148,12 @@ const PostController = {
             },
             include: {
               likes: true,
-              author: true,
+              author: {
+                include: {
+                  followers: true,
+                  following: true
+                }
+              },
               comments: true,
             },
             orderBy: {
@@ -123,6 +181,15 @@ const PostController = {
         }
 
         try{
+            // Удаляем изображение из Cloudinary, если оно есть
+            if (post.imageUrl) {
+                const { getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary.js');
+                const publicId = getPublicIdFromUrl(post.imageUrl);
+                if (publicId) {
+                    await deleteFromCloudinary(publicId);
+                }
+            }
+
             const transaction = await prisma.$transaction([
                 prisma.comment.deleteMany({where: {postId: id}}),
                 prisma.like.deleteMany({where: {postId: id}}),

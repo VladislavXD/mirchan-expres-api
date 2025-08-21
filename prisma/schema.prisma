@@ -19,6 +19,9 @@ model User {
   password    String
   name        String?
   avatarUrl   String?
+  avatarFrameUrl String?
+  backgroundUrl String?
+  usernameFrameUrl String?
   dateOfBirth DateTime?
   createdAt   DateTime  @default(now())
   updated     DateTime  @updatedAt
@@ -43,9 +46,12 @@ model Follows {
 model Post {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   content   String
+  imageUrl  String?   // URL одного изображения из Cloudinary
   author   User      @relation(fields: [authorId], references: [id])
   authorId  String    @db.ObjectId
   likes     Like[]
+  emojis    String[]  @db.ObjectId 
+  views     String[]  @db.ObjectId 
   comments  Comment[]
   createdAt DateTime  @default(now())
 }

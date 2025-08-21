@@ -146,11 +146,11 @@ class SocketManager {
     try {
       const { chatId, content } = data;
 
-      // Обновляем время последней активности пользователя
+      // Асинхронно обновляем время последней активности пользователя
       this.updateUserLastSeen(socket.userId);
 
-      // Проверяем, что пользователь участник чата
-      const chat = await prisma.chat.findFirst({
+      // Проверяем доступ к чату и создаем сообщение параллельно
+      const chatPromise = prisma.chat.findFirst({
         where: {
           id: chatId,
           participants: {
@@ -159,13 +159,7 @@ class SocketManager {
         }
       });
 
-      if (!chat) {
-        socket.emit('error', { message: 'Chat not found or access denied' });
-        return;
-      }
-
-      // Создаем сообщение
-      const message = await prisma.message.create({
+      const messagePromise = prisma.message.create({
         data: {
           content,
           senderId: socket.userId,
@@ -173,42 +167,31 @@ class SocketManager {
         }
       });
 
-      // Обновляем последнее сообщение в чате
-      await prisma.chat.update({
+      const [chat, message] = await Promise.all([chatPromise, messagePromise]);
+
+      if (!chat) {
+        socket.emit('error', { message: 'Chat not found or access denied' });
+        return;
+      }
+
+      // Создаем сообщение для отправки
+      const messageWithSender = {
+        ...message,
+        createdAt: message.createdAt.toISOString(),
+        sender: socket.user
+      };
+
+      // Сразу отправляем сообщение всем участникам чата
+      this.io.to(`chat_${chatId}`).emit('new_message', messageWithSender);
+
+      // Асинхронно обновляем последнее сообщение в чате (не ждем завершения)
+      prisma.chat.update({
         where: { id: chatId },
         data: {
           lastMessage: content,
           lastMessageAt: new Date()
         }
-      });
-
-      // Получаем полную информацию о сообщении для отправки
-      const fullMessage = await prisma.message.findUnique({
-        where: { id: message.id },
-        include: {
-          chat: {
-            select: {
-              participants: true
-            }
-          }
-        }
-      });
-
-      // Добавляем информацию об отправителе
-      const messageWithSender = {
-        ...fullMessage,
-        sender: socket.user
-      };
-
-      // Отправляем сообщение всем участникам чата
-      this.io.to(`chat_${chatId}`).emit('new_message', messageWithSender);
-
-      // Отправляем уведомление офлайн пользователям
-      const offlineParticipants = chat.participants.filter(participantId => 
-        participantId !== socket.userId && !this.userSockets.has(participantId)
-      );
-
-      // Здесь можно добавить логику push-уведомлений для офлайн пользователей
+      }).catch(error => console.error('Error updating chat last message:', error));
 
       console.log(`Message sent in chat ${chatId} by ${socket.user.name}`);
     } catch (error) {
