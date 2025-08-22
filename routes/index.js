@@ -55,7 +55,8 @@ router.get('/posts', authenticateTokent, PostController.GetAllPosts)
 router.get('/posts/:id', authenticateTokent, PostController.GetPostById)
 router.delete('/posts/:id', authenticateTokent, PostController.DeletePost)
 router.get('/posts/user/:userId', authenticateTokent, PostController.GetPostByUserId)
-
+router.post('/posts/view', authenticateTokent, PostController.addView)
+router.post('/posts/views/batch', authenticateTokent, PostController.addViewsBatch)
 
 
 // comment route
