@@ -257,6 +257,44 @@ const UserController = {
       res.status(500).json({ error: "Internal server error" });
     }
   },
+
+  searchUsers: async (req, res) => {
+    try {
+      const { query } = req.query;
+      
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+
+      const users = await prisma.user.findMany({
+        where: {
+          name: {
+            contains: query,
+            mode: 'insensitive'
+          }
+        },
+        take: 8,
+        select: {
+          id: true,
+          name: true,
+          avatarUrl: true,
+          bio: true,
+          followers: true
+        }
+      });
+
+      const usersWithFollowCount = users.map(user => ({
+        ...user,
+        followersCount: user.followers?.length || 0,
+        followers: undefined // Убираем массив для экономии трафика
+      }));
+
+      res.json(usersWithFollowCount);
+    } catch (err) {
+      console.log("Search users error", err);
+      res.status(500).json({ error: "Ошибка поиска" });
+    }
+  },
 };
 
 module.exports = UserController;

@@ -1,5 +1,5 @@
 // import UserController from '../controllers';
-const UserController = require ('../controllers/user-controller.js')
+const UserController = require('../controllers/user-controller.js')
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -29,43 +29,28 @@ const uploads = multer({
   }
 });
 
-// Middleware для обработки ошибок multer
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'Файл слишком большой (максимум 5MB)' });
-    }
-  }
-  if (err.message === 'Только изображения разрешены!') {
-    return res.status(400).json({ error: 'Разрешены только изображения' });
-  }
-  next(err);
-};
-
-/* GET user route. */
+// user route
 router.post('/register', UserController.register)
 router.post('/login', UserController.login)
+router.get('/current', authenticateTokent, UserController.getCurrentUser)
 router.get('/user/search', authenticateTokent, UserController.searchUsers)
 router.get('/user/:id', authenticateTokent, UserController.getUserById)
-router.get('/current', authenticateTokent, UserController.currentUser)
-router.put('/user/:id', authenticateTokent, uploads.single('avatar'), handleMulterError, UserController.updateUser)
+router.put('/user/:id', authenticateTokent, uploads.single('avatar'), UserController.updateUser)
 
 
-// route posts
-router.post('/posts', authenticateTokent, uploads.single('image'), handleMulterError, PostController.createPost)
+//post route
+router.post('/posts', authenticateTokent, uploads.single('image'), PostController.createPost)
 router.get('/posts', authenticateTokent, PostController.GetAllPosts)
-router.get('/posts/:id', authenticateTokent, PostController.GetPostById)
-router.delete('/posts/:id', authenticateTokent, PostController.DeletePost)
-router.get('/posts/user/:userId', authenticateTokent, PostController.GetPostByUserId)
-router.post('/posts/view', authenticateTokent, PostController.addView)
+router.get('/posts/:id', authenticateTokent, PostController.getPostById)
+router.delete('/posts/:id', authenticateTokent, PostController.deletePost)
+router.put('/posts/:id/view', authenticateTokent, PostController.addView)
+router.get('/posts/:id/views', authenticateTokent, PostController.getViews)
 router.post('/posts/views/batch', authenticateTokent, PostController.addViewsBatch)
 
 
 // comment route
 router.post('/comments', authenticateTokent, CommentController.createComment)
 router.delete('/comments/:id', authenticateTokent, CommentController.deleteComment)
-
-
 
 
 // like route
@@ -84,9 +69,8 @@ router.get('/chats/:chatId/messages', authenticateTokent, ChatController.getChat
 router.put('/chats/:chatId/read', authenticateTokent, ChatController.markMessagesAsRead)
 router.delete('/chats/:chatId', authenticateTokent, ChatController.deleteChat)
 
-// News routes (без аутентификации для тестирования)
+// News routes
 router.get('/news/headlines', NewsController.getHeadlines)
 router.get('/news/search', NewsController.searchNews)
-
 
 module.exports = router
