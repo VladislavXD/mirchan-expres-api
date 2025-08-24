@@ -55,6 +55,7 @@ router.put('/user/:id', authenticateTokent, uploads.single('avatar'), handleMult
 router.post('/posts', authenticateTokent, uploads.single('image'), handleMulterError, PostController.createPost)
 router.get('/posts', authenticateTokent, PostController.GetAllPosts)
 router.get('/posts/:id', authenticateTokent, PostController.GetPostById)
+router.put('/posts/:id', authenticateTokent, uploads.single('image'), handleMulterError, PostController.UpdatePost)
 router.delete('/posts/:id', authenticateTokent, PostController.DeletePost)
 router.get('/posts/user/:userId', authenticateTokent, PostController.GetPostByUserId)
 router.post('/posts/view', authenticateTokent, PostController.addView)

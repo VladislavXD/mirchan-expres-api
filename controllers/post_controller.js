@@ -179,6 +179,83 @@ const PostController = {
         }
     },
 
+    UpdatePost: async (req, res)=> {
+        const {id} = req.params
+        const {content, emojiUrls} = req.body;
+        const userId = req.user.userId;
+
+        try {
+            const post = await prisma.post.findUnique({ where: { id } });
+            if (!post) return res.status(404).json({ error: 'Пост не найден' });
+            if (post.authorId !== userId) return res.status(403).json({ error: 'Нет доступа' });
+
+            // Парсим emojiUrls если пришли строкой
+            let parsedEmojiUrls = [];
+            if (emojiUrls) {
+                try {
+                    parsedEmojiUrls = typeof emojiUrls === 'string' ? JSON.parse(emojiUrls) : emojiUrls;
+                } catch (e) {
+                    parsedEmojiUrls = [];
+                }
+            }
+
+            let newImageUrl = post.imageUrl;
+
+            // Если пришёл новый файл, удаляем старый и грузим новый
+            if (req.file) {
+                try {
+                    const { getPublicIdFromUrl, deleteFromCloudinary } = require('../utils/cloudinary.js');
+                    if (post.imageUrl) {
+                        const publicId = getPublicIdFromUrl(post.imageUrl);
+                        if (publicId) await deleteFromCloudinary(publicId);
+                    }
+
+                    const streamifier = require('streamifier');
+                    const uploadResult = await new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            {
+                                folder: 'mirchanPost',
+                                transformation: [
+                                    { width: 800, height: 600, crop: 'limit' },
+                                    { quality: 'auto:good' }
+                                ]
+                            },
+                            (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            }
+                        );
+                        streamifier.createReadStream(req.file.buffer).pipe(stream);
+                    });
+                    newImageUrl = uploadResult.secure_url;
+                } catch (e) {
+                    console.error('Cloudinary upload error:', e);
+                    return res.status(500).json({ error: 'Ошибка загрузки изображения' });
+                }
+            }
+
+            const updated = await prisma.post.update({
+                where: { id },
+                data: {
+                    ...(typeof content === 'string' ? { content } : {}),
+                    ...(emojiUrls ? { emojiUrls: parsedEmojiUrls } : {}),
+                    imageUrl: newImageUrl,
+                },
+                include: {
+                    comments: true,
+                    likes: true,
+                    author: {
+                        include: { followers: true, following: true }
+                    }
+                }
+            });
+
+            return res.json(updated);
+        } catch (err) {
+            console.log('UpdatePost error', err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    },
     DeletePost: async (req, res) => {
         const { id } = req.params;
         
