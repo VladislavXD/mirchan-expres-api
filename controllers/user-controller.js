@@ -109,7 +109,9 @@ const UserController = {
       const user = await prisma.user.findUnique({
         where: { id },
         include: {
-          post: true,
+          post: {
+            include: { comments: true, likes: true, author: true },
+          },
           followers: {
             include: {
               follower: true,
@@ -118,6 +120,16 @@ const UserController = {
           following: {
             include: {
               following: true,
+            },
+          },
+          comments: {
+            include: {
+              post: { include: { author: true, comments: true, likes: true } },
+            },
+          },
+          likes: {
+            include: {
+              post: { include: { author: true, comments: true, likes: true } },
             },
           },
         },
@@ -243,6 +255,19 @@ const UserController = {
           following: {
             include: {
               following: true,
+            },
+          },
+          post: {
+            include: { comments: true, likes: true, author: true },
+          },
+          comments: {
+            include: {
+              post: { include: { author: true, comments: true, likes: true } },
+            },
+          },
+          likes: {
+            include: {
+              post: { include: { author: true, comments: true, likes: true } },
             },
           },
         },
