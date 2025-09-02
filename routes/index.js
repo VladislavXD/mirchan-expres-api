@@ -45,6 +45,7 @@ const handleMulterError = (err, req, res, next) => {
 /* GET user route. */
 router.post('/register', UserController.register)
 router.post('/login', UserController.login)
+router.post('/auth/google-sync', UserController.googleSync) // Добавляем Google синхронизацию
 router.get('/user/search', authenticateTokent, UserController.searchUsers)
 router.get('/user/:id', authenticateTokent, UserController.getUserById)
 router.get('/current', authenticateTokent, UserController.currentUser)

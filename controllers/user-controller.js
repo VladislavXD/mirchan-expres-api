@@ -71,6 +71,72 @@ const UserController = {
     }
   },
 
+  // Новый метод для Google OAuth синхронизации
+  googleSync: async (req, res) => {
+    const { email, name, avatarUrl, googleId } = req.body;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ error: "Email и Google ID обязательны" });
+    }
+
+    try {
+      // Проверяем, существует ли пользователь с таким email или googleId
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email },
+            { googleId }
+          ]
+        }
+      });
+
+      if (user) {
+        // Обновляем существующего пользователя
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId,
+            provider: "google",
+            name: name || user.name,
+            avatarUrl: avatarUrl || user.avatarUrl,
+            lastSeen: new Date(),
+          }
+        });
+      } else {
+        // Создаем нового пользователя
+        user = await prisma.user.create({
+          data: {
+            email,
+            name: name || email.split('@')[0],
+            avatarUrl,
+            googleId,
+            provider: "google",
+            lastSeen: new Date(),
+          }
+        });
+      }
+
+      // Создаем JWT токен
+      const token = jwt.sign({ userId: user.id }, process.env.SECRET_KEY, {
+        expiresIn: "30d",
+      });
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          provider: user.provider,
+        },
+        token
+      });
+    } catch (err) {
+      console.error("Google sync error:", err);
+      res.status(500).json({ error: "Ошибка синхронизации с Google" });
+    }
+  },
+
   login: async (req, res) => {
     const { email, password } = req.body;
 

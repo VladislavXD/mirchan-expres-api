@@ -16,7 +16,7 @@ datasource db {
 model User {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   email       String    @unique
-  password    String
+  password    String?   // Делаем опциональным для Google OAuth
   name        String?
   avatarUrl   String?
   avatarFrameUrl String?
@@ -28,6 +28,8 @@ model User {
   bio         String?
   location    String?
   lastSeen    DateTime? // Время последней активности
+  googleId    String?   @unique // Google OAuth ID
+  provider    String?   // "local" | "google"
   post        Post[]
   likes       Like[]
   comments    Comment[]
