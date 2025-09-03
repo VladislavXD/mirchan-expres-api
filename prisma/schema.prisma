@@ -28,7 +28,7 @@ model User {
   bio         String?
   location    String?
   lastSeen    DateTime? // Время последней активности
-  googleId    String?   @unique // Google OAuth ID
+  googleId    String? // Google OAuth ID
   provider    String?   // "local" | "google"
   post        Post[]
   likes       Like[]
