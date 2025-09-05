@@ -5,12 +5,12 @@ const cloudinary = require('cloudinary').v2;
 
 /**
  * Загружает файл в Cloudinary в папку форума
- * @param {string} filePath - путь к файлу
+ * @param {string|Buffer} fileSource - путь к файлу или buffer
  * @param {string} folder - подпапка (board name)
  * @param {object} options - дополнительные опции
  * @returns {Promise<object>} результат загрузки
  */
-const uploadForumMedia = async (filePath, folder = 'general', options = {}) => {
+const uploadForumMedia = async (fileSource, folder = 'general', options = {}) => {
   try {
     const uploadOptions = {
       folder: `mirchanForumMedia/${folder}`,
@@ -37,7 +37,18 @@ const uploadForumMedia = async (filePath, folder = 'general', options = {}) => {
       ];
     }
 
-    const result = await cloudinary.uploader.upload(filePath, uploadOptions);
+    // Если передан buffer, используем upload_stream, иначе обычный upload
+    let result;
+    if (Buffer.isBuffer(fileSource)) {
+      result = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }).end(fileSource);
+      });
+    } else {
+      result = await cloudinary.uploader.upload(fileSource, uploadOptions);
+    }
     
     return {
       success: true,

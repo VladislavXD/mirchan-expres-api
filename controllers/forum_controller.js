@@ -146,7 +146,7 @@ const createThread = async (req, res) => {
 
       // Загрузка в Cloudinary
       const uploadResult = await uploadForumMedia(
-        req.file.path, 
+        req.file.buffer, // используем buffer вместо file path
         boardName,
         { 
           isImage: fileType.isImage,
@@ -311,7 +311,7 @@ const createReply = async (req, res) => {
       }
 
       const uploadResult = await uploadForumMedia(
-        req.file.path, 
+        req.file.buffer, // используем buffer вместо file path
         boardName,
         { 
           isImage: fileType.isImage,
