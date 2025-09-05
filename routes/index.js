@@ -90,5 +90,8 @@ router.delete('/chats/:chatId', authenticateTokent, ChatController.deleteChat)
 router.get('/news/headlines', NewsController.getHeadlines)
 router.get('/news/search', NewsController.searchNews)
 
+// Forum routes
+const forumRoutes = require('./forum');
+router.use('/forum', forumRoutes);
 
 module.exports = router

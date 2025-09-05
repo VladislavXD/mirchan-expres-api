@@ -35,6 +35,8 @@ model User {
   comments    Comment[]
   followers   Follows[] @relation("following")
   following   Follows[] @relation("follower")
+  modActions  ModAction[] @relation("ModActions")
+  bansMade    Ban[] @relation("BansMade")
 }
 
 model Follows {
@@ -93,4 +95,114 @@ model Message {
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// Forum models
+model Board {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique // /b/, /g/, /pol/ и т.д.
+  title       String   // "Random", "Technology", "Politics"
+  description String?
+  isNsfw      Boolean  @default(false)
+  maxFileSize Int      @default(5242880) // 5MB в байтах
+  allowedFileTypes String[] @default(["jpg", "jpeg", "png", "gif", "webp", "webm", "mp4"])
+  postsPerPage Int     @default(15)
+  threadsPerPage Int   @default(10)
+  bumpLimit   Int      @default(500) // лимит постов в треде
+  imageLimit  Int      @default(150) // лимит картинок в треде
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  threads     Thread[]
+  bans        Ban[]
+}
+
+model Thread {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  shortId     String   @unique // Короткий уникальный ID поста
+  boardId     String   @db.ObjectId
+  subject     String?  // Тема треда (опциональная)
+  content     String   // Содержимое OP поста
+  authorName  String?  // Анонимное имя (опционально)
+  authorTrip  String?  // Трипкод для идентификации
+  posterHash  String   // Хеш IP для идентификации в треде
+  
+  // Cloudinary media data
+  imageUrl    String?  // URL изображения в Cloudinary
+  imagePublicId String? // Public ID в Cloudinary для удаления
+  imageName   String?  // Оригинальное имя файла
+  imageSize   Int?     // Размер файла в байтах
+  thumbnailUrl String? // URL превью в Cloudinary
+  
+  isPinned    Boolean  @default(false) // Закрепленный тред
+  isLocked    Boolean  @default(false) // Заблокированный тред
+  isClosed    Boolean  @default(false) // Закрытый тред
+  isArchived  Boolean  @default(false) // Архивированный
+  
+  replyCount  Int      @default(0)     // Количество ответов
+  imageCount  Int      @default(0)     // Количество изображений
+  uniquePosters Int    @default(1)     // Уникальные постеры
+  
+  lastBumpAt  DateTime @default(now()) // Последний бамп
+  createdAt   DateTime @default(now())
+  
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  replies     Reply[]
+}
+
+model Reply {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  shortId     String   @unique // Короткий уникальный ID поста
+  threadId    String   @db.ObjectId
+  content     String   // Содержимое поста
+  authorName  String?  // Анонимное имя
+  authorTrip  String?  // Трипкод
+  posterHash  String   // Хеш постера в треде
+  postNumber  Int      // Номер поста в треде (автоинкремент)
+  
+  // Cloudinary media data
+  imageUrl    String?  // URL изображения в Cloudinary
+  imagePublicId String? // Public ID в Cloudinary для удаления
+  imageName   String?  // Оригинальное имя файла
+  imageSize   Int?     // Размер файла
+  thumbnailUrl String? // URL превью в Cloudinary
+  
+  replyTo     String[] @default([]) // Ссылки на shortId постов, на которые отвечает
+  quotedBy    String[] @default([]) // Ссылки на shortId постов, которые цитируют этот
+  
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  
+  thread      Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  
+  @@unique([threadId, postNumber])
+}
+
+model ModAction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  moderatorId String @db.ObjectId
+  action    String   // "delete_post", "ban_user", "pin_thread", etc.
+  targetType String  // "thread", "reply", "user"
+  targetId  String   @db.ObjectId
+  reason    String?
+  duration  Int?     // Для банов - в часах
+  createdAt DateTime @default(now())
+  
+  moderator User     @relation("ModActions", fields: [moderatorId], references: [id])
+}
+
+model Ban {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  ipHash    String   // Хеш IP адреса
+  boardId   String?  @db.ObjectId // null = глобальный бан
+  reason    String
+  moderatorId String @db.ObjectId
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  
+  board     Board?   @relation(fields: [boardId], references: [id])
+  moderator User     @relation("BansMade", fields: [moderatorId], references: [id])
 }
