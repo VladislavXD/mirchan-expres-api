@@ -38,7 +38,8 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB максимум
+    fileSize: 10 * 1024 * 1024, // 10MB максимум для одного файла
+    files: 5 // Максимум 5 файлов за раз
   }
 });
 
@@ -51,8 +52,8 @@ router.get('/boards/:boardName/info', getBoardInfo);
 router.get('/boards/:boardName/threads/:threadId', getThread);
 
 // Роуты для создания контента (тоже публичные для анонимности)
-router.post('/boards/:boardName/threads', upload.single('image'), createThread);
-router.post('/boards/:boardName/threads/:threadId/replies', upload.single('image'), createReply);
+router.post('/boards/:boardName/threads', upload.array('images', 5), createThread);
+router.post('/boards/:boardName/threads/:threadId/replies', upload.array('images', 5), createReply);
 
 // Административные роуты (потребуют авторизацию)
 // TODO: Добавить middleware для проверки прав администратора

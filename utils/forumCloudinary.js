@@ -70,6 +70,108 @@ const uploadForumMedia = async (fileSource, folder = 'general', options = {}) =>
 };
 
 /**
+ * Загружает множественные файлы в Cloudinary в папку форума
+ * @param {Array<{buffer: Buffer, originalname: string, mimetype: string, size: number}>} files - массив файлов
+ * @param {string} folder - подпапка (board name)
+ * @returns {Promise<Array<object>>} результаты загрузки файлов
+ */
+const uploadMultipleForumMedia = async (files, folder = 'general') => {
+  try {
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      console.log('No files provided for upload');
+      return [];
+    }
+
+    console.log(`Uploading ${files.length} files to folder: ${folder}`);
+
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        const isImage = file.mimetype.startsWith('image/');
+        const isVideo = file.mimetype.startsWith('video/');
+        
+        if (!isImage && !isVideo) {
+          throw new Error(`Unsupported file type: ${file.mimetype}`);
+        }
+
+        console.log(`Processing file ${index + 1}: ${file.originalname} (${file.mimetype})`);
+
+        const uploadOptions = {
+          folder: `mirchanForumMedia/${folder}`,
+          resource_type: isVideo ? 'video' : 'image',
+          public_id: undefined,
+          overwrite: false,
+          transformation: [
+            { quality: 'auto:good' },
+            { fetch_format: 'auto' }
+          ]
+        };
+
+        // Для изображений создаем превью
+        if (isImage) {
+          uploadOptions.eager = [
+            { 
+              width: 250, 
+              height: 250, 
+              crop: 'limit',
+              quality: 'auto:low',
+              fetch_format: 'auto'
+            }
+          ];
+        }
+
+        // Для видео создаем превью-картинку
+        if (isVideo) {
+          uploadOptions.eager = [
+            { 
+              width: 250, 
+              height: 250, 
+              crop: 'limit',
+              quality: 'auto:low',
+              resource_type: 'image' // превью как картинка
+            }
+          ];
+        }
+
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+            if (error) {
+              console.error(`Upload error for file ${file.originalname}:`, error);
+              reject(error);
+            } else {
+              console.log(`Successfully uploaded: ${file.originalname}`);
+              resolve(result);
+            }
+          }).end(file.buffer);
+        });
+
+        return {
+          url: result.secure_url,
+          publicId: result.public_id,
+          name: file.originalname,
+          size: file.size,
+          type: isVideo ? 'video' : 'image',
+          mimeType: file.mimetype,
+          thumbnailUrl: result.eager && result.eager[0] ? result.eager[0].secure_url : null,
+          width: result.width,
+          height: result.height,
+          duration: result.duration || null
+        };
+      } catch (fileError) {
+        console.error(`Error processing file ${file.originalname}:`, fileError);
+        throw fileError;
+      }
+    });
+
+    const results = await Promise.all(uploadPromises);
+    console.log(`Successfully uploaded ${results.length} files`);
+    return results;
+  } catch (error) {
+    console.error('Error uploading multiple files to Cloudinary:', error);
+    throw error;
+  }
+};
+
+/**
  * Удаляет файл из Cloudinary
  * @param {string} publicId - public ID файла в Cloudinary
  * @param {string} resourceType - тип ресурса (image, video, raw)
@@ -179,6 +281,7 @@ const getFileTypeInfo = (mimeType) => {
 
 module.exports = {
   uploadForumMedia,
+  uploadMultipleForumMedia,
   deleteForumMedia,
   deleteMultipleForumMedia,
   deleteForumFolder,

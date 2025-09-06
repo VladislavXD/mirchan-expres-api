@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const { uploadForumMedia, deleteForumMedia, deleteMultipleForumMedia, getFileTypeInfo } = require('../utils/forumCloudinary');
+const { uploadForumMedia, uploadMultipleForumMedia, deleteForumMedia, deleteMultipleForumMedia, getFileTypeInfo } = require('../utils/forumCloudinary');
 const { generateShortId } = require('../utils/shortId');
 const crypto = require('crypto');
 const prisma = new PrismaClient();
@@ -57,6 +57,7 @@ const getBoardThreads = async (req, res) => {
         isArchived: false 
       },
       include: {
+        mediaFiles: true,
         _count: {
           select: { replies: true }
         },
@@ -65,12 +66,17 @@ const getBoardThreads = async (req, res) => {
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
+            shortId: true,
             content: true,
             authorName: true,
             postNumber: true,
             imageUrl: true,
             thumbnailUrl: true,
+            imageCount: true,
             createdAt: true
+          },
+          include: {
+            mediaFiles: true
           }
         }
       },
@@ -124,47 +130,53 @@ const createThread = async (req, res) => {
     }
 
     let mediaData = {};
+    let mediaFiles = [];
     
-    // Обработка загруженного файла
-    if (req.file) {
-      const fileType = getFileTypeInfo(req.file.mimetype);
-      
-      // Проверка размера файла
-      if (req.file.size > board.maxFileSize) {
-        return res.status(400).json({ 
-          error: `File too large. Max size: ${Math.round(board.maxFileSize / 1024 / 1024)}MB` 
-        });
+    // Обработка загруженных файлов (множественные)
+    if (req.files && req.files.length > 0) {
+      // Проверка количества файлов
+      if (req.files.length > 5) {
+        return res.status(400).json({ error: 'Too many files. Maximum 5 files allowed' });
       }
 
-      // Проверка типа файла
-      const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
-      if (!board.allowedFileTypes.includes(fileExtension)) {
-        return res.status(400).json({ 
-          error: `File type not allowed. Allowed: ${board.allowedFileTypes.join(', ')}` 
-        });
-      }
-
-      // Загрузка в Cloudinary
-      const uploadResult = await uploadForumMedia(
-        req.file.buffer, // используем buffer вместо file path
-        boardName,
-        { 
-          isImage: fileType.isImage,
-          resource_type: fileType.resourceType 
+      // Проверка каждого файла
+      for (const file of req.files) {
+        // Проверка размера файла
+        if (file.size > board.maxFileSize) {
+          return res.status(400).json({ 
+            error: `File ${file.originalname} too large. Max size: ${Math.round(board.maxFileSize / 1024 / 1024)}MB` 
+          });
         }
-      );
 
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: 'Failed to upload media' });
+        // Проверка типа файла
+        const fileExtension = file.originalname.split('.').pop().toLowerCase();
+        if (!board.allowedFileTypes.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: `File type ${fileExtension} not allowed. Allowed: ${board.allowedFileTypes.join(', ')}` 
+          });
+        }
       }
 
-      mediaData = {
-        imageUrl: uploadResult.url,
-        imagePublicId: uploadResult.publicId,
-        imageName: req.file.originalname,
-        imageSize: uploadResult.size,
-        thumbnailUrl: uploadResult.thumbnailUrl
-      };
+      // Загрузка файлов в Cloudinary
+      const uploadResults = await uploadMultipleForumMedia(req.files, boardName);
+      
+      if (!uploadResults || uploadResults.length === 0) {
+        return res.status(500).json({ error: 'Failed to upload media files' });
+      }
+
+      mediaFiles = uploadResults;
+
+      // Для обратной совместимости, используем первый файл как основной
+      if (uploadResults.length > 0) {
+        const firstFile = uploadResults[0];
+        mediaData = {
+          imageUrl: firstFile.url,
+          imagePublicId: firstFile.publicId,
+          imageName: firstFile.name,
+          imageSize: firstFile.size,
+          thumbnailUrl: firstFile.thumbnailUrl
+        };
+      }
     }
 
     const posterHash = generatePosterHash(clientIp, boardName);
@@ -191,11 +203,26 @@ const createThread = async (req, res) => {
         authorName: authorName || null,
         authorTrip: authorTrip || null,
         posterHash,
-        imageCount: req.file ? 1 : 0,
-        ...mediaData
+        imageCount: mediaFiles.length,
+        ...mediaData,
+        mediaFiles: {
+          create: mediaFiles.map(file => ({
+            url: file.url,
+            publicId: file.publicId,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            mimeType: file.mimeType,
+            thumbnailUrl: file.thumbnailUrl,
+            width: file.width,
+            height: file.height,
+            duration: file.duration
+          }))
+        }
       },
       include: {
         board: true,
+        mediaFiles: true,
         _count: {
           select: { replies: true }
         }
@@ -229,9 +256,13 @@ const getThread = async (req, res) => {
       },
       include: {
         board: true,
+        mediaFiles: true,
         replies: {
           orderBy: { postNumber: 'asc' },
-          where: { isDeleted: false }
+          where: { isDeleted: false },
+          include: {
+            mediaFiles: true
+          }
         }
       }
     });
@@ -292,44 +323,53 @@ const createReply = async (req, res) => {
     }
 
     let mediaData = {};
+    let mediaFiles = [];
     
-    // Обработка загруженного файла
-    if (req.file) {
-      const fileType = getFileTypeInfo(req.file.mimetype);
-      
-      if (req.file.size > board.maxFileSize) {
-        return res.status(400).json({ 
-          error: `File too large. Max size: ${Math.round(board.maxFileSize / 1024 / 1024)}MB` 
-        });
+    // Обработка загруженных файлов (множественные файлы)
+    if (req.files && req.files.length > 0) {
+      // Проверка количества файлов
+      if (req.files.length > 5) {
+        return res.status(400).json({ error: 'Too many files. Maximum 5 files allowed.' });
       }
 
-      const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
-      if (!board.allowedFileTypes.includes(fileExtension)) {
-        return res.status(400).json({ 
-          error: `File type not allowed. Allowed: ${board.allowedFileTypes.join(', ')}` 
-        });
-      }
-
-      const uploadResult = await uploadForumMedia(
-        req.file.buffer, // используем buffer вместо file path
-        boardName,
-        { 
-          isImage: fileType.isImage,
-          resource_type: fileType.resourceType 
+      // Валидация каждого файла
+      for (const file of req.files) {
+        const fileType = getFileTypeInfo(file.mimetype);
+        
+        if (file.size > board.maxFileSize) {
+          return res.status(400).json({ 
+            error: `File too large. Max size: ${Math.round(board.maxFileSize / 1024 / 1024)}MB` 
+          });
         }
-      );
 
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: 'Failed to upload media' });
+        const fileExtension = file.originalname.split('.').pop().toLowerCase();
+        if (!board.allowedFileTypes.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: `File type not allowed. Allowed: ${board.allowedFileTypes.join(', ')}` 
+          });
+        }
       }
 
-      mediaData = {
-        imageUrl: uploadResult.url,
-        imagePublicId: uploadResult.publicId,
-        imageName: req.file.originalname,
-        imageSize: uploadResult.size,
-        thumbnailUrl: uploadResult.thumbnailUrl
-      };
+      // Загрузка всех файлов в Cloudinary
+      const uploadResults = await uploadMultipleForumMedia(req.files, boardName);
+
+      if (!uploadResults || uploadResults.length === 0) {
+        return res.status(500).json({ error: 'Failed to upload media files' });
+      }
+
+      mediaFiles = uploadResults;
+
+      // Устанавливаем данные для обратной совместимости (первый файл)
+      if (mediaFiles.length > 0) {
+        const firstFile = mediaFiles[0];
+        mediaData = {
+          imageUrl: firstFile.url,
+          imagePublicId: firstFile.publicId,
+          imageName: firstFile.name,
+          imageSize: firstFile.size,
+          thumbnailUrl: firstFile.thumbnailUrl
+        };
+      }
     }
 
     const posterHash = generatePosterHash(clientIp, boardName);
@@ -394,7 +434,25 @@ const createReply = async (req, res) => {
         posterHash,
         postNumber,
         replyTo,
-        ...mediaData
+        imageCount: mediaFiles.length,
+        ...mediaData,
+        mediaFiles: {
+          create: mediaFiles.map(file => ({
+            url: file.url,
+            publicId: file.publicId,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            mimeType: file.mimeType,
+            thumbnailUrl: file.thumbnailUrl,
+            width: file.width,
+            height: file.height,
+            duration: file.duration
+          }))
+        }
+      },
+      include: {
+        mediaFiles: true
       }
     });
 
@@ -409,8 +467,8 @@ const createReply = async (req, res) => {
     }
 
     // Увеличиваем счетчик изображений
-    if (req.file) {
-      updateData.imageCount = { increment: 1 };
+    if (mediaFiles.length > 0) {
+      updateData.imageCount = { increment: mediaFiles.length };
     }
 
     await prisma.thread.update({

@@ -3,7 +3,7 @@ const UserController = require ('../controllers/user-controller.js')
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const authenticateTokent = require('../middleware/auth.js');
+const { authenticateToken } = require('../middleware/auth.js');
 const PostController = require('../controllers/post_controller.js');
 const CommentController = require('../controllers/commetn_controller.js');
 const LikeController = require('../controllers/like_controller.js');
@@ -46,45 +46,45 @@ const handleMulterError = (err, req, res, next) => {
 router.post('/register', UserController.register)
 router.post('/login', UserController.login)
 router.post('/auth/google-sync', UserController.googleSync) // Добавляем Google синхронизацию
-router.get('/user/search', authenticateTokent, UserController.searchUsers)
-router.get('/user/:id', authenticateTokent, UserController.getUserById)
-router.get('/current', authenticateTokent, UserController.currentUser)
-router.put('/user/:id', authenticateTokent, uploads.single('avatar'), handleMulterError, UserController.updateUser)
+router.get('/user/search', authenticateToken, UserController.searchUsers)
+router.get('/user/:id', authenticateToken, UserController.getUserById)
+router.get('/current', authenticateToken, UserController.currentUser)
+router.put('/user/:id', authenticateToken, uploads.single('avatar'), handleMulterError, UserController.updateUser)
 
 
 // route posts
-router.post('/posts', authenticateTokent, uploads.single('image'), handleMulterError, PostController.createPost)
-router.get('/posts', authenticateTokent, PostController.GetAllPosts)
-router.get('/posts/:id', authenticateTokent, PostController.GetPostById)
-router.put('/posts/:id', authenticateTokent, uploads.single('image'), handleMulterError, PostController.UpdatePost)
-router.delete('/posts/:id', authenticateTokent, PostController.DeletePost)
-router.get('/posts/user/:userId', authenticateTokent, PostController.GetPostByUserId)
-router.post('/posts/view', authenticateTokent, PostController.addView)
-router.post('/posts/views/batch', authenticateTokent, PostController.addViewsBatch)
+router.post('/posts', authenticateToken, uploads.single('image'), handleMulterError, PostController.createPost)
+router.get('/posts', authenticateToken, PostController.GetAllPosts)
+router.get('/posts/:id', authenticateToken, PostController.GetPostById)
+router.put('/posts/:id', authenticateToken, uploads.single('image'), handleMulterError, PostController.UpdatePost)
+router.delete('/posts/:id', authenticateToken, PostController.DeletePost)
+router.get('/posts/user/:userId', authenticateToken, PostController.GetPostByUserId)
+router.post('/posts/view', authenticateToken, PostController.addView)
+router.post('/posts/views/batch', authenticateToken, PostController.addViewsBatch)
 
 
 // comment route
-router.post('/comments', authenticateTokent, CommentController.createComment)
-router.delete('/comments/:id', authenticateTokent, CommentController.deleteComment)
+router.post('/comments', authenticateToken, CommentController.createComment)
+router.delete('/comments/:id', authenticateToken, CommentController.deleteComment)
 
 
 
 
 // like route
-router.post('/likes', authenticateTokent, LikeController.likePost)
-router.delete('/likes/:id', authenticateTokent, LikeController.unLikePost)
+router.post('/likes', authenticateToken, LikeController.likePost)
+router.delete('/likes/:id', authenticateToken, LikeController.unLikePost)
 
 
 // follows route
-router.post('/follow', authenticateTokent, FollowController.followUser)
-router.delete('/follow/:id', authenticateTokent, FollowController.unfollowUser)
+router.post('/follow', authenticateToken, FollowController.followUser)
+router.delete('/follow/:id', authenticateToken, FollowController.unfollowUser)
 
 // Chat routes
-router.get('/chats', authenticateTokent, ChatController.getUserChats)
-router.get('/chats/:otherUserId', authenticateTokent, ChatController.getOrCreateChat)
-router.get('/chats/:chatId/messages', authenticateTokent, ChatController.getChatMessages)
-router.put('/chats/:chatId/read', authenticateTokent, ChatController.markMessagesAsRead)
-router.delete('/chats/:chatId', authenticateTokent, ChatController.deleteChat)
+router.get('/chats', authenticateToken, ChatController.getUserChats)
+router.get('/chats/:otherUserId', authenticateToken, ChatController.getOrCreateChat)
+router.get('/chats/:chatId/messages', authenticateToken, ChatController.getChatMessages)
+router.put('/chats/:chatId/read', authenticateToken, ChatController.markMessagesAsRead)
+router.delete('/chats/:chatId', authenticateToken, ChatController.deleteChat)
 
 // News routes (без аутентификации для тестирования)
 router.get('/news/headlines', NewsController.getHeadlines)
@@ -93,5 +93,9 @@ router.get('/news/search', NewsController.searchNews)
 // Forum routes
 const forumRoutes = require('./forum');
 router.use('/forum', forumRoutes);
+
+// Admin routes
+const adminRoutes = require('./admin');
+router.use('/admin', adminRoutes);
 
 module.exports = router

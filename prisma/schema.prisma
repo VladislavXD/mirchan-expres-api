@@ -23,6 +23,8 @@ model User {
   backgroundUrl String?
   usernameFrameUrl String?
   dateOfBirth DateTime?
+  role        String    @default("user") // "user", "moderator", "admin"
+  isActive    Boolean   @default(true)   // Активность аккаунта
   createdAt   DateTime  @default(now())
   updated     DateTime  @updatedAt
   bio         String?
@@ -98,6 +100,29 @@ model Message {
 }
 
 // Forum models
+model MediaFile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  url         String   // URL файла в Cloudinary
+  publicId    String   // Public ID в Cloudinary для удаления
+  name        String?  // Оригинальное имя файла
+  size        Int?     // Размер файла в байтах
+  type        String   // Тип файла: "image" или "video"
+  mimeType    String   // MIME тип файла
+  thumbnailUrl String? // URL превью в Cloudinary
+  width       Int?     // Ширина изображения/видео
+  height      Int?     // Высота изображения/видео
+  duration    Int?     // Длительность видео в секундах
+  
+  // Связи с постами
+  threadId    String?  @db.ObjectId
+  replyId     String?  @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  
+  thread      Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reply       Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+}
+
 model Board {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String   @unique // /b/, /g/, /pol/ и т.д.
@@ -127,7 +152,10 @@ model Thread {
   authorTrip  String?  // Трипкод для идентификации
   posterHash  String   // Хеш IP для идентификации в треде
   
-  // Cloudinary media data
+  // Cloudinary media data (множественные файлы)
+  mediaFiles  MediaFile[] // Массив медиафайлов
+  
+  // Deprecated single media fields (оставляем для обратной совместимости)
   imageUrl    String?  // URL изображения в Cloudinary
   imagePublicId String? // Public ID в Cloudinary для удаления
   imageName   String?  // Оригинальное имя файла
@@ -160,7 +188,11 @@ model Reply {
   posterHash  String   // Хеш постера в треде
   postNumber  Int      // Номер поста в треде (автоинкремент)
   
-  // Cloudinary media data
+  // Cloudinary media data (множественные файлы)
+  mediaFiles  MediaFile[] // Массив медиафайлов
+  imageCount  Int      @default(0) // Количество медиафайлов
+  
+  // Deprecated single media fields (оставляем для обратной совместимости)
   imageUrl    String?  // URL изображения в Cloudinary
   imagePublicId String? // Public ID в Cloudinary для удаления
   imageName   String?  // Оригинальное имя файла
